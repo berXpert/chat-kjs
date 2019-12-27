@@ -2,8 +2,18 @@ var app = require('express')();
 var http = require('http').createServer(app);
 var io = require('socket.io')(http);
 
+const low = require('lowdb')
+const FileSync = require('lowdb/adapters/FileSync')
+
+const adapter = new FileSync('db.json')
+const db = low(adapter)
+
+db.defaults({ posts: [], user: {}, count: 0 })
+  .write()
+
+
 app.get('/', function (req, res) {
-    res.sendFile(__dirname + '/index.html');
+  res.sendFile(__dirname + '/index.html');
 });
 
 
@@ -28,7 +38,7 @@ const run = async () => {
     ],
   })
 
-  // Consuming
+  // Consuming Kafka
   await consumer.connect()
   await consumer.subscribe({ topic: 'test-topic', fromBeginning: true })
 
@@ -45,8 +55,8 @@ const run = async () => {
   })
 }
 
-io.on('connection', function(socket){
-  socket.on('chat message', function(msg){
+io.on('connection', function (socket) {
+  socket.on('chat message', function (msg) {
     // io.emit('chat message', msg); let's use  Kafka consumer 'emit' the received message
 
     producer.send({
@@ -55,6 +65,11 @@ io.on('connection', function(socket){
         { value: msg },
       ],
     })
+
+    // Add a post
+    db.get('posts')
+      .push({ id: 1, message: msg })
+      .write()
   });
 });
 
